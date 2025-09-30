@@ -1,0 +1,19 @@
+{
+  "name": "dtrader-crypto-server",
+  "version": "10.0.0",
+  "scripts": {
+    "build": "tsc",
+    "start": "node build/main.js",
+    "dev": "tsc && node build/main.js",
+    "dev:watch": "tsc --watch",
+    "clean": "rm -rf build"
+  },
+  "dependencies": {
+    "ws": "^8.14.2"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.10",
+    "@types/node": "^20.10.5",
+    "typescript": "^5.3.3"
+  }
+}
