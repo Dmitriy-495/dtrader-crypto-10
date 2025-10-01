@@ -4,13 +4,8 @@ export interface WebSocketMessage {
   timestamp: number;
 }
 
-export interface PingPongMessage {
-  time: number;
-  channel: string;
-}
-
 export interface SystemStatus {
-  status: "connected" | "disconnected" | "error";
+  status: "connected" | "disconnected";
   lastPong: number;
   gateIOConnected: boolean;
   clientsConnected: number;
