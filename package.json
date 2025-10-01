@@ -1,12 +1,20 @@
 {
   "name": "dtrader-crypto-server",
   "version": "10.0.0",
+  "type": "module",
   "scripts": {
     "build": "tsc",
     "start": "node build/main.js",
-    "dev": "tsc && node build/main.js",
-    "dev:watch": "tsc --watch",
-    "clean": "rm -rf build"
+    "dev": "ts-node --transpile-only src/main.ts",
+    "clean": "rm -rf build logs",
+    "pm2:start": "npx pm2 start ecosystem.config.cjs",
+    "pm2:stop": "npx pm2 stop dtrader-crypto",
+    "pm2:restart": "npx pm2 restart dtrader-crypto",
+    "pm2:logs": "npx pm2 logs dtrader-crypto",
+    "pm2:status": "npx pm2 status",
+    "pm2:monit": "npx pm2 monit",
+    "pm2:delete": "npx pm2 delete dtrader-crypto",
+    "test:client": "node test-client.js"
   },
   "dependencies": {
     "ws": "^8.14.2"
@@ -14,6 +22,8 @@
   "devDependencies": {
     "@types/ws": "^8.5.10",
     "@types/node": "^20.10.5",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "ts-node": "^10.9.2",
+    "pm2": "^6.0.13"
   }
 }

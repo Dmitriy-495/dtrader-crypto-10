@@ -1,12 +1,8 @@
-import { GateIOWebSocket } from "./gateio-websocket.js";
-import { ClientWebSocketServer } from "./client-websocket.js";
-import { EventBus } from "./event-bus.js";
-import { SystemStatus } from "./types.js";
+import { GateIOWebSocket } from "./gateio-websocket";
+import { ClientWebSocketServer } from "./client-websocket";
+import { EventBus } from "./event-bus";
+import { SystemStatus } from "./types";
 
-/**
- * Основное ядро системы dtrader-crypto
- * Координирует работу всех компонентов и управляет жизненным циклом
- */
 export class DTraderCrypto {
   private gateIO: GateIOWebSocket;
   private clientWS: ClientWebSocketServer;
@@ -16,13 +12,6 @@ export class DTraderCrypto {
   private lastPongTime: number = 0;
   private startupTime: number = 0;
 
-  // Стандартные каналы для подписки
-  private readonly DEFAULT_CHANNELS = [
-    "spot.tickers",
-    "spot.trades",
-    "spot.order_book",
-  ];
-
   constructor() {
     this.eventBus = EventBus.getInstance();
     this.gateIO = new GateIOWebSocket();
@@ -31,76 +20,57 @@ export class DTraderCrypto {
     this.setupEventListeners();
   }
 
-  /**
-   * Запуск системы
-   */
   public async start(): Promise<void> {
-    if (this.isRunning) {
-      return;
-    }
+    if (this.isRunning) return;
 
     this.isRunning = true;
     this.startupTime = Date.now();
 
-    // Запускаем подключение к бирже
-    this.gateIO.connect();
+    console.log("🎯 dtrader-crypto core starting...");
+    console.log("⏰ Startup time:", new Date(this.startupTime).toISOString());
 
-    // Запускаем основной цикл системы
+    this.gateIO.connect();
     this.startCoreLoop();
 
     this.eventBus.emit("system_started", {
       timestamp: this.startupTime,
-      port: 8080,
-      version: "10.0.0",
     });
+
+    console.log("✅ dtrader-crypto core started successfully");
   }
 
-  /**
-   * Остановка системы
-   */
   public stop(): void {
-    if (!this.isRunning) {
-      return;
-    }
+    if (!this.isRunning) return;
 
     this.isRunning = false;
 
-    // Останавливаем основной цикл
     if (this.coreLoop) {
       clearInterval(this.coreLoop);
       this.coreLoop = null;
     }
 
-    // Закрываем соединения
     this.gateIO.disconnect();
     this.clientWS.close();
 
     const uptime = Date.now() - this.startupTime;
-
-    this.eventBus.emit("system_stopped", {
-      timestamp: Date.now(),
-      uptime,
-    });
+    console.log(
+      `🛑 dtrader-crypto core stopped. Uptime: ${Math.round(uptime / 1000)}s`
+    );
   }
 
-  /**
-   * Запуск основного цикла системы
-   */
   private startCoreLoop(): void {
-    // Основной цикл с интервалом 1 секунда для мониторинга
     this.coreLoop = setInterval(() => {
       if (!this.isRunning) return;
 
-      // Отправка статуса системы
-      this.sendSystemStatus();
-
-      // Дополнительные проверки здоровья системы могут быть добавлены здесь
+      // Отправляем статус каждые 10 секунд
+      if (Date.now() % 10000 < 1000) {
+        this.sendSystemStatus();
+      }
     }, 1000);
+
+    console.log("🔁 Core monitoring loop started");
   }
 
-  /**
-   * Отправка статуса системы всем клиентам
-   */
   private sendSystemStatus(): void {
     const status: SystemStatus = {
       status: "connected",
@@ -112,49 +82,51 @@ export class DTraderCrypto {
     this.eventBus.emit("system_status", status);
   }
 
-  /**
-   * Настройка обработчиков событий
-   */
   private setupEventListeners(): void {
-    // Обработка pong от Gate.io
     this.eventBus.on("pong_received", (data: any) => {
       this.lastPongTime = data.timestamp;
+
+      const pongTime = new Date(data.timestamp).toISOString();
+      const latency = data.pingLatency ? `${data.pingLatency}ms` : "N/A";
+
+      console.log("════════════════════════════════════════");
+      console.log("📡 PONG RECEIVED FROM GATE.IO");
+      console.log("════════════════════════════════════════");
+      console.log(`   📅 Local time: ${pongTime}`);
+      console.log(`   🔢 Time field: ${data.time}`);
+      console.log(`   ⏱️  Latency: ${latency}`);
+      console.log(`   📊 Clients: ${this.clientWS.getClientsCount()}`);
+      console.log("════════════════════════════════════════");
     });
 
-    // При подключении к Gate.io подписываемся на каналы
     this.eventBus.on("gateio_connected", () => {
-      setTimeout(() => {
-        this.eventBus.emit("subscribe", {
-          channels: this.DEFAULT_CHANNELS,
-        });
-      }, 1000);
+      console.log("✅ Connected to Gate.io WebSocket");
+      console.log("🔄 Ping-pong monitoring started (30s interval)");
     });
 
-    // Обработка запроса статуса от клиента
-    this.eventBus.on("system_status_request", (data: { ws: WebSocket }) => {
-      const status = this.getStatus();
-      this.eventBus.emit("system_status", status);
+    this.eventBus.on("gateio_disconnected", () => {
+      console.log("❌ Disconnected from Gate.io");
     });
 
-    // Обработка критических ошибок
-    this.eventBus.on("gateio_error", (data: any) => {
-      // В будущем здесь может быть логика обработки критических ошибок
+    this.eventBus.on("ping_sent", (data: any) => {
+      const pingTime = new Date(data.timestamp).toISOString();
+      console.log("────────────────────────────────────────");
+      console.log("📤 PING SENT TO GATE.IO");
+      console.log("────────────────────────────────────────");
+      console.log(`   📅 Time: ${pingTime}`);
+      console.log(`   🔢 Time field: ${data.message.time}`);
+      console.log("────────────────────────────────────────");
     });
 
-    // Обработка максимального количества переподключений
-    this.eventBus.on("gateio_max_reconnects", (data: any) => {
-      // Система может принять решение об остановке при постоянных ошибках подключения
-      this.eventBus.emit("system_error", {
-        code: "MAX_RECONNECTS",
-        message: "Maximum reconnection attempts reached",
-        timestamp: Date.now(),
-      });
+    this.eventBus.on("client_connected", (data: any) => {
+      console.log(`👤 Client connected. Total: ${data.clientsCount}`);
+    });
+
+    this.eventBus.on("client_disconnected", (data: any) => {
+      console.log(`👤 Client disconnected. Total: ${data.clientsCount}`);
     });
   }
 
-  /**
-   * Получение текущего статуса системы
-   */
   public getStatus(): SystemStatus {
     return {
       status: this.isRunning ? "connected" : "disconnected",
@@ -164,16 +136,6 @@ export class DTraderCrypto {
     };
   }
 
-  /**
-   * Проверка работы системы
-   */
-  public isSystemRunning(): boolean {
-    return this.isRunning;
-  }
-
-  /**
-   * Получение времени работы системы
-   */
   public getUptime(): number {
     return this.isRunning ? Date.now() - this.startupTime : 0;
   }
